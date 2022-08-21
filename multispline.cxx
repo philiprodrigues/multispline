@@ -28,6 +28,23 @@ inline double eval_splineAoS(const MySplineAoS& s, const double x)
   return (c.y + dx*(c.b + dx*(c.c + dx*c.d))); 
 }
 
+inline double eval_spline_float(const MySpline_float& s, const float x)
+{
+  int which = std::floor(x + 3);
+  const float xknot = -3 + which;
+  const float dx = x - xknot;
+  return (s.ys[which]+dx*(s.bs[which]+dx*(s.cs[which]+dx*s.ds[which]))); 
+}
+
+inline double eval_splineAoS_float(const MySplineAoS_float& s, const float x)
+{
+  int which = std::floor(x + 3);
+  const float xknot = -3 + which;
+  const float dx = x - xknot;
+  const Coeffs_float& c=s.c[which];
+  return (c.y + dx*(c.b + dx*(c.c + dx*c.d))); 
+}
+
 // Evaluate the splines stored in the MySplineAVX at the same value `x` and store all the outputs in `weights`
 inline void eval_splineAVX(const MySplineAVX& s, double x, double* weights)
 {
@@ -56,9 +73,34 @@ inline void eval_splineAVX(const MySplineAVX& s, double x, double* weights)
   _mm256_storeu_pd(weights, weight);
 }
 
+MySpline_float make_spline_float(const MySpline &source)
+{
+  MySpline_float ret;
+  for (int i=0; i<N; ++i) {
+    ret.ys[i]=source.ys[i];
+    ret.bs[i]=source.bs[i];
+    ret.cs[i]=source.cs[i];
+    ret.ds[i]=source.ds[i];
+  }
+  return ret;
+}
+
 MySplineAoS make_splineAoS(const MySpline& source)
 {
   MySplineAoS s;
+  for (int i=0; i<N; ++i) {
+    s.c[i].y=source.ys[i];
+    s.c[i].b=source.bs[i];
+    s.c[i].c=source.cs[i];
+    s.c[i].d=source.ds[i];
+  }
+
+  return s;
+}
+
+MySplineAoS_float make_splineAoS_float(const MySpline& source)
+{
+  MySplineAoS_float s;
   for (int i=0; i<N; ++i) {
     s.c[i].y=source.ys[i];
     s.c[i].b=source.bs[i];
@@ -131,14 +173,17 @@ int main()
 
   // Spline objects for the 3 different methods
   std::vector<MySpline> splines(nsplines);
-  std::vector<MySplineAoS> splinesAoS(nsplines);
+  std::vector<MySpline_float> splines_float(nsplines);
+  std::vector<MySplineAoS_float> splinesAoS_float(nsplines);
   std::vector<MySplineAVX> splinesAVX(nsplines);
 
   // The systematic shifts
   std::vector<double> shifts(nsplines);
+  std::vector<float> shifts_float(nsplines);
 
   // Weights from the three methods, and the "true" values from TSpline3
   std::vector<double> weights(nsplines);
+  std::vector<double> weights_float(nsplines);
   std::vector<double> weightsAoS(nsplines);
   std::vector<double> weightsAVX(nsplines);
   std::vector<double> weights_gold(nsplines);
@@ -160,8 +205,11 @@ int main()
   std::cout << "Making random splines" << std::endl;
   for (int i=0; i<nsplines; ++i) {
     splines[i] = MySpline(*(reinterpret_cast<MySpline*>(buffer)+i));
-    splinesAoS[i] = make_splineAoS(splines[i]);
+    splines_float[i] = make_spline_float(splines[i]);
+    splinesAoS_float[i] = make_splineAoS_float(splines[i]);
+        
     shifts[i] = *(reinterpret_cast<double*>(shift_buffer)+i);
+    shifts_float[i] = shifts[i];
     weights_gold[i] = *(reinterpret_cast<double*>(weight_buffer)+i);
   }
 
@@ -187,10 +235,19 @@ int main()
   });
 
   // -------------------------------------------------------------------
-  std::cout << "Evaluating splines with MySplineAoS" << std::endl;
+  std::cout << "Evaluating splines with MySpline_float" << std::endl;
+
   benchmark([&](){
     for (int i=0; i<nsplines; ++i) {
-      weightsAoS[i] = eval_splineAoS(splinesAoS[i], shifts[i]);
+      weights_float[i] = eval_spline_float(splines_float[i], shifts_float[i]);
+    }
+  });
+
+  // -------------------------------------------------------------------
+  std::cout << "Evaluating splines with MySplineAoS_float" << std::endl;
+  benchmark([&](){
+    for (int i=0; i<nsplines; ++i) {
+      weightsAoS[i] = eval_splineAoS_float(splinesAoS_float[i], shifts_float[i]);
     }
   });
 
@@ -206,10 +263,11 @@ int main()
   std::cout << "Checking against TSpline3..." << std::flush;
 
   bool good=check_weights(weights, weights_gold);
+  bool good_float=check_weights(weights_float, weights_gold);
   bool goodAoS=check_weights(weightsAoS, weights_gold);
   bool goodAVX=check_weights(weightsAVX, weights_gold);
 
-  std::cout << "MySpline: " << (good ? "good" : "bad") << ", MySplineAoS: " << (goodAoS ? "good" : "bad")
+  std::cout << "MySpline: " << (good ? "good" : "bad") << "MySpline_float: " << (good_float ? "good" : "bad") << ", MySplineAoS: " << (goodAoS ? "good" : "bad")
             << ", AVX: " << (goodAVX ? "good" : "bad") << std::endl;
   
 }

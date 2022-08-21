@@ -15,14 +15,30 @@ struct MySpline
   double ds[N];
 };
 
+struct MySpline_float
+{
+  float ys[N];
+  float bs[N];
+  float cs[N];
+  float ds[N];
+};
+
 // Method 2 of saving the splines. Could call this "array-of-structures"
 struct Coeffs {
   double y, b, c, d;
+};
+struct Coeffs_float {
+  float y, b, c, d;
 };
 
 struct MySplineAoS
 {
   Coeffs c[N];
+};
+
+struct MySplineAoS_float
+{
+  Coeffs_float c[N];
 };
 
 // Method 3 of saving the splines. We save 4 splines' coefficients in
