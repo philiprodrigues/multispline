@@ -90,6 +90,41 @@ uint64_t now_us()
   return duration_cast<microseconds>(steady_clock::now().time_since_epoch()).count();
 }
 
+void benchmark(std::function<void(void)> fn)
+{
+  // We run many times because there is a large run-to-run variation
+  const int nruns = 50;
+  double best = std::numeric_limits<double>::max();
+  double total = 0;
+  for (int j=0; j<nruns; ++j) {
+    uint64_t start = now_us();
+    fn();
+    // for (int i=0; i<nsplines; ++i) {
+    //   weights[i] = eval_spline(splines[i], shifts[i]);
+    // }
+    uint64_t end = now_us();
+    double dur = 1e-3*(end-start);
+    best = std::min(best, dur);
+    total += dur;
+    std::cout << static_cast<int>(dur) << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "Mean: " << (total/nruns) << "ms, best: " << best << "ms" << std::endl;
+}
+
+bool check_weights(const std::vector<double> &weights,
+                   const std::vector<double> &weights_gold)
+
+{
+  for (size_t i=0; i<weights.size(); ++i) {
+    double gold = weights_gold[i];
+    if (fabs(gold - weights[i]) > 1e-5) {
+      return false;
+    }
+  }
+  return true;
+}
+
 int main()
 {
   const int nsplines = 10*1000*1000;
@@ -144,82 +179,36 @@ int main()
 
   // -------------------------------------------------------------------
   std::cout << "Evaluating splines with MySpline" << std::endl;
-  // We run many times because there is a large run-to-run variation
-  const int nruns = 50;
-  double best = std::numeric_limits<double>::max();
-  double total = 0;
-  for (int j=0; j<nruns; ++j) {
-    uint64_t start = now_us();
+
+  benchmark([&](){
     for (int i=0; i<nsplines; ++i) {
       weights[i] = eval_spline(splines[i], shifts[i]);
     }
-    uint64_t end = now_us();
-    double dur = 1e-3*(end-start);
-    best = std::min(best, dur);
-    total += dur;
-    std::cout << static_cast<int>(dur) << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "Mean: " << (total/nruns) << "ms, best: " << best << "ms" << std::endl;
+  });
 
   // -------------------------------------------------------------------
   std::cout << "Evaluating splines with MySplineAoS" << std::endl;
-  best = std::numeric_limits<double>::max();
-  total = 0;
-
-  for (int j=0; j<nruns; ++j) {
-    uint64_t start = now_us();
+  benchmark([&](){
     for (int i=0; i<nsplines; ++i) {
       weightsAoS[i] = eval_splineAoS(splinesAoS[i], shifts[i]);
     }
-    uint64_t end = now_us();
-    double dur = 1e-3*(end-start);
-    best = std::min(best, dur);
-    total += dur;
-    std::cout << static_cast<int>(dur) << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "Mean: " << (total/nruns) << "ms, best: " << best << "ms" << std::endl;
+  });
 
   // -------------------------------------------------------------------
   std::cout << "Evaluating splines with eval_splineAVX" << std::endl;
-  best = std::numeric_limits<double>::max();
-  total = 0;
-
-  for (int j=0; j<nruns; ++j) {
-    uint64_t start = now_us();
+  benchmark([&](){
     for (int i=0; i<nsplines/4; i++) {
       eval_splineAVX(splinesAVX[i], shifts[i*4], &weightsAVX[i*4]);
     }
-    uint64_t end = now_us();
-    double dur = 1e-3*(end-start);
-    best = std::min(best, dur);
-    total += dur;
-    std::cout << static_cast<int>(dur) << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "Mean: " << (total/nruns) << "ms, best: " << best << "ms" << std::endl;
+  });
 
-  // -------------------------------------------------------------------
+  // ===================================================================
   std::cout << "Checking against TSpline3..." << std::flush;
 
-  bool good=true;
-  bool goodAoS=true;
-  bool goodAVX=true;
-  for (int i=0; i<nsplines; ++i) {
-    double gold = weights_gold[i];
-    if (fabs(gold - weights[i]) > 1e-5) {
-      good=false;
-    }
-    if (fabs(gold - weightsAoS[i]) > 1e-5) {
-      std::cout << gold << ", " << weightsAoS[i] << std::endl;
-      goodAoS=false;
-    }
-    if (fabs(gold - weightsAVX[i]) > 1e-5) {
-      std::cout << gold << ", " << weightsAVX[i] << std::endl;
-      goodAVX=false;
-    }
-  }
+  bool good=check_weights(weights, weights_gold);
+  bool goodAoS=check_weights(weightsAoS, weights_gold);
+  bool goodAVX=check_weights(weightsAVX, weights_gold);
+
   std::cout << "MySpline: " << (good ? "good" : "bad") << ", MySplineAoS: " << (goodAoS ? "good" : "bad")
             << ", AVX: " << (goodAVX ? "good" : "bad") << std::endl;
   
