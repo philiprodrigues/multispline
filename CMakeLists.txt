@@ -5,7 +5,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(ROOT 6.22 CONFIG REQUIRED)
 
-add_compile_options(-Wall -Wextra -O3 -ffast-math -mavx -mavx2)
+add_compile_options(-Wall -Wextra -O3 -ffast-math -mavx -mavx2 -mavx512f -mfma)
 # add_compile_options(-O0 -g)
 
 add_executable(multispline multispline.cxx)

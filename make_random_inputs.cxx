@@ -36,7 +36,7 @@ int main()
 {
   gRandom->SetSeed(42);
   
-  const int nsplines = 10*1000*1000;
+  const int nsplines = 8*1000*1000;
   std::vector<MySpline> splines(nsplines);
   
   std::cout << "Making random splines" << std::endl;
@@ -55,11 +55,11 @@ int main()
   double shift=0;
   for (int i=0; i<nsplines; ++i) {
     TSpline3 spline3("title", xs, splines[i].ys, N);
-    // 4 shifts in a row are the same, to simulate the fact that there
+    // 8 shifts in a row are the same, to simulate the fact that there
     // are multiple splines for a given systematic shift, eg for
-    // different modes, or bins in a histogram. 4 is chosen because
-    // it's the number of doubles in an AVX2 register
-    if (i%4 == 0) {
+    // different modes, or bins in a histogram. 8 is chosen because
+    // it's the number of floats in an AVX512 register
+    if (i%16 == 0) {
       shift = gRandom->Uniform(5.99) - 2.99;
     }
     double weight = spline3.Eval(shift);

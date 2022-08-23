@@ -51,3 +51,19 @@ struct MySplineAVX
   __m256d cs[N];
   __m256d ds[N];
 };
+
+struct MySplineAVX_float
+{
+  __m256 ys[N];
+  __m256 bs[N];
+  __m256 cs[N];
+  __m256 ds[N];
+};
+
+struct MySplineAVX512_float
+{
+  __m512 ys[N];
+  __m512 bs[N];
+  __m512 cs[N];
+  __m512 ds[N];
+};
