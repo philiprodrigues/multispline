@@ -157,7 +157,7 @@ inline void eval_splineAVX_float_fma(const MySplineAVX_float& s, float x, float*
 inline void eval_splineAVX512_float(const MySplineAVX512_float& s, float x, float* weights)
 {
   int which = std::floor(x + 3);
-  const double xknot = -3 + which;
+  const float xknot = -3 + which;
   // Set all of the items in the dx register to the same value
   __m512 dx = _mm512_set1_ps(x - xknot);
 
@@ -389,7 +389,7 @@ int main()
     splinesAVX_float[i] = make_splineAVX_float(&splines[i*8]);
   }
   for(int i=0; i<nsplines/16; ++i) {
-    splinesAVX512_float[i] = make_splineAVX512_float(&splines[i*8]);
+    splinesAVX512_float[i] = make_splineAVX512_float(&splines[i*16]);
   }
   
   delete[] buffer;
